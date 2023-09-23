@@ -54,7 +54,8 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
     IsResponse == error_response
 ->
     % io:format("******* ~p handler info ~n", [self()]),
-    Logline = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
+    LogMap = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
+    Logline = thoas:encode(LogMap),
     % _ = log_access_safe(Code, Headers, State, get_request_body_length(Req)),
     % {log, info, "~p", Logline }
     {_Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),

@@ -5,7 +5,11 @@
   {git,"https://github.com/rbkmoney/genlib.git",
        {ref,"941b8c8d4dc544b740a2429ea8381c3873e5fe75"}},
   0},
- {<<"ranch">>,{pkg,<<"ranch">>,<<"1.8.0">>},1}]}.
+ {<<"ranch">>,{pkg,<<"ranch">>,<<"1.8.0">>},1},
+ {<<"thoas">>,
+  {git,"https://github.com/Inkwell-Data/thoas.git",
+       {ref,"076da3fb7c87864cb1e70e0c1752b0dd3dba3ac5"}},
+  0}]}.
 [
 {pkg_hash,[
  {<<"cowboy">>, <<"865DD8B6607E14CF03282E10E934023A1BD8BE6F6BACF921A7E2A96D800CD452">>},
