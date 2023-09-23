@@ -63,7 +63,7 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
     LogMap = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
     Logline = thoas:encode(LogMap),
     Log = #{type => access_log, json_report => Logline},
-    % _ = log_access_safe(Code, Headers, State, get_request_body_length(Req)),
+    _ = log_access_safe(Code, Headers, State, get_request_body_length(Req)),
     % {log, info, "~p", Logline }
     {_Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
     {[{log, info, "~p", [Log] }], State#{next => Next}};
@@ -125,7 +125,7 @@ prepare_meta(Code, Headers, #{req := Req, meta:= Meta0, ext_fun := F, report_dom
         request_path        => cowboy_req:path(Req),
         request_length      => ReqBodyLength,
         response_length     => get_response_len(Headers),
-        request_time        => get_request_duration(Meta0),
+        request_duration    => get_request_duration(Meta0),
         'http_x-request-id' => cowboy_req:header(<<"x-request-id">>, Req, undefined)
     }),
     AccessMeta1 = maps:merge(get_process_meta(), AccessMeta),
