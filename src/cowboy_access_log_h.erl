@@ -8,7 +8,8 @@
 
 %% API exports
 
--export([set_extra_info_fun/2]).
+-export([set_extra_info_fun/2
+        , set_report_domain/2]).
 
 %% callback exports
 
@@ -32,6 +33,11 @@
 set_extra_info_fun(Fun, Opts) when is_function(Fun, 1) ->
     Opts#{extra_info_fun => Fun}.
 
+-spec set_report_domain(atom(), cowboy:opts())
+    -> cowboy:opts().
+set_report_domain(Domain, Opts) when is_atom(Domain) ->
+     Opts#{report_domain => Domain}.
+ 
 %% callbacks
 
 -spec init(cowboy_stream:streamid(), cowboy_req:req(), cowboy:opts())
@@ -108,9 +114,9 @@ get_process_meta() ->
 % domain field specifies the functional area that send log event
 % as we want to save logs from this app in a separate file,
 % we can easily filter logs by their domain using OTP filter functions.
-prepare_meta(Code, Headers, #{req := Req, meta:= Meta0, ext_fun := F}, ReqBodyLength) ->
+prepare_meta(Code, Headers, #{req := Req, meta:= Meta0, ext_fun := F, report_domain := Domain}, ReqBodyLength) ->
     AccessMeta = genlib_map:compact(#{
-        domain              => [cowboy_access_log],
+        domain              => [Domain],
         status              => Code,
         remote_addr         => get_remote_addr(Req),
         peer_addr           => get_peer_addr(Req),
@@ -177,7 +183,8 @@ get_response_len(Headers) ->
 
 make_state(Req, Opts) ->
     ExtFun = make_ext_fun(Opts),
-    set_meta(#{req => Req, ext_fun => ExtFun}).
+    Domain = maps:get(report_domain, Opts, cowboy),
+    set_meta(#{req => Req, ext_fun => ExtFun, report_domain => Domain}).
 
 set_meta(State) ->
     State#{meta => #{started_at => genlib_time:ticks()}}.
