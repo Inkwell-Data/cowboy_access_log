@@ -62,10 +62,11 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
     % io:format("******* ~p handler info ~n", [self()]),
     LogMap = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
     Logline = thoas:encode(LogMap),
+    Log = #{type => <<"acces log">>, json_report => Logline},
     % _ = log_access_safe(Code, Headers, State, get_request_body_length(Req)),
     % {log, info, "~p", Logline }
     {_Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    {[{log, info, "~p", [Logline] }], State#{next => Next}};
+    {[{log, info, "~p", [Log] }], State#{next => Next}};
 
 info(StreamID, Info, #{next := Next0} = State) ->
     {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
