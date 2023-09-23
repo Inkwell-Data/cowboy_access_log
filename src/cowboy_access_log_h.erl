@@ -9,6 +9,7 @@
 %% API exports
 
 -export([set_extra_info_fun/2
+        , set_log_level/2
         , set_report_domain/2]).
 
 %% callback exports
@@ -37,7 +38,12 @@ set_extra_info_fun(Fun, Opts) when is_function(Fun, 1) ->
     -> cowboy:opts().
 set_report_domain(Domain, Opts) when is_atom(Domain) ->
      Opts#{report_domain => Domain}.
- 
+
+-spec set_log_level(atom(), cowboy:opts())
+     -> cowboy:opts().
+ set_log_level(Level, Opts) when is_atom(Level) ->
+      Opts#{level => Level}.
+      
 %% callbacks
 
 -spec init(cowboy_stream:streamid(), cowboy_req:req(), cowboy:opts())
@@ -59,16 +65,13 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
     IsResponse == response;
     IsResponse == error_response
 ->
-    % io:format("******* ~p handler info ~n", [self()]),
-    LogMap = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
-    Logline = thoas:encode(LogMap),
-    Log = #{type => access_log, json_report => Logline},
-    logger:set_module_level(?MODULE, info),
-    ok = logger:log(info, "", [], prepare_meta(Code, Headers, State, get_request_body_length(Req))),
-    _ = log_access_safe(Code, Headers, State, get_request_body_length(Req)),
-    % {log, info, "~p", Logline }
+    Log = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
+    % Logline = thoas:encode(LogMap),
+    % Log = #{type => access_log, json_report => Logline},
+    Level = maps:get(level, State, info),
+    logger:set_module_level(?MODULE, Level),
     {_Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    {[{log, info, "~p", [Log] }], State#{next => Next}};
+    {[{log, Level, "~p", [Log] }], State#{next => Next}};
 
 info(StreamID, Info, #{next := Next0} = State) ->
     {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
