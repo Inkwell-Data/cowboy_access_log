@@ -63,6 +63,7 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
     LogMap = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
     Logline = thoas:encode(LogMap),
     Log = #{type => access_log, json_report => Logline},
+    logger:log(warning, "", [], prepare_meta(Code, Headers, State, get_request_body_length(Req))),
     _ = log_access_safe(Code, Headers, State, get_request_body_length(Req)),
     % {log, info, "~p", Logline }
     {_Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
