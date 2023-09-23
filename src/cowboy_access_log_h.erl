@@ -53,9 +53,13 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
     IsResponse == response;
     IsResponse == error_response
 ->
-    _ = log_access_safe(Code, Headers, State, get_request_body_length(Req)),
-    {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    {Commands0, State#{next => Next}};
+    % io:format("******* ~p handler info ~n", [self()]),
+    Logline = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
+    % _ = log_access_safe(Code, Headers, State, get_request_body_length(Req)),
+    % {log, info, "~p", Logline }
+    {_Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
+    {[{log, info, "~p", [Logline] }], State#{next => Next}};
+
 info(StreamID, Info, #{next := Next0} = State) ->
     {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
     {Commands0, State#{next => Next}}.
