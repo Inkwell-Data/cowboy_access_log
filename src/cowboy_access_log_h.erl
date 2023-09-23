@@ -6,6 +6,13 @@
 -type extra_info_fun() :: fun((cowboy_req:req()) -> #{atom() => term()}).
 -export_type([extra_info_fun/0]).
 
+%%% Note that the logs from this module can be 
+%%% filtered on alog json reports using ths key
+%%% <<"error_logger">> => #{<<"tag">> => <<"info_msg">>}
+%%% the filed report is the json encoded access log
+%%% <<"report">> =>
+%%% <<"#{status => 200,\n  domain => [ska_server],\n  request_path => <<\"/v1/getform\">>,peer_addr => <<\"127.0.0.1\">>,\n  remote_addr => <<\"127.0.0.1\">>,request_duration => 0.031452,\n  request_method => <<\"GET\">>,response_length => 858}">>
+
 %% API exports
 
 -export([set_extra_info_fun/2
