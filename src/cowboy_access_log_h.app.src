@@ -1,6 +1,6 @@
 {application, cowboy_access_log, [
     {description, "Log your access history"},
-    {vsn, "0.2.0"},
+    {vsn, "0.2.1"},
     {registered, []},
     {applications, [
         kernel,
@@ -11,7 +11,7 @@
     {env,[]},
     {modules, []},
     {maintainers, [
-        "Toporkov Igor <i.toporkov@rbkmoney.com>"
+        "Massimo Cesaro <massimo.cesaro@inkwelldata.com>"
     ]},
     {licenses, []},
     {links, []}
