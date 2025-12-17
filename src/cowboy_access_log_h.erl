@@ -73,12 +73,25 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
     IsResponse == error_response
 ->
     Log = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
-    % Logline = thoas:encode(LogMap),
-    % Log = #{type => access_log, json_report => Logline},
     Level = maps:get(level, State, info),
     logger:set_module_level(?MODULE, Level),
-    {_Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    {[{log, Level, "~p", [Log] }], State#{next => Next}};
+    {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
+    % Return ALL commands - both response and log
+    {[{log, Level, "~p", [Log]} | Commands0], State#{next => Next}};
+
+%% -spec info(cowboy_stream:streamid(), any(), State)
+%%     -> {cowboy_stream:commands(), State} when State::state().
+%% info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next0} = State) when
+%%     IsResponse == response;
+%%     IsResponse == error_response
+%% ->
+%%     Log = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
+%%     % Logline = thoas:encode(LogMap),
+%%     % Log = #{type => access_log, json_report => Logline},
+%%     Level = maps:get(level, State, info),
+%%     logger:set_module_level(?MODULE, Level),
+%%     {_Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
+%%     {[{log, Level, "~p", [Log] }], State#{next => Next}};
 
 info(StreamID, Info, #{next := Next0} = State) ->
     {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
