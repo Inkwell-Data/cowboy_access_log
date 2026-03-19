@@ -146,12 +146,12 @@ prepare_meta(Code, Headers, #{req := Req, meta:= Meta0, ext_fun := F, report_dom
         status              => Code,
         remote_addr         => get_remote_addr(Req),
         peer_addr           => get_peer_addr(Req),
-        request_method      => cowboy_req:method(Req),
-        request_path        => cowboy_req:path(Req),
+        request_method      => get_method(Req),
+        request_path        => get_path(Req),
         request_length      => ReqBodyLength,
         response_length     => get_response_len(Headers),
         request_duration    => get_request_duration(Meta0),
-        'http_x-request-id' => cowboy_req:header(<<"x-request-id">>, Req, undefined)
+        'http_x-request-id' => get_header(<<"x-request-id">>, Req)
     }),
     AccessMeta1 = maps:merge(get_process_meta(), AccessMeta),
     maps:merge(F(Req), AccessMeta1).
@@ -166,6 +166,21 @@ get_peer_addr(Req) ->
     {IP, _Port} = cowboy_req:peer(Req),
     genlib:to_binary(inet:ntoa(IP)).
 
+get_method(#{method := _} = Req) ->
+    cowboy_req:method(Req);
+get_method(#{}) ->
+    undefined.
+
+get_path(#{path := _} = Req) ->
+    cowboy_req:path(Req);
+get_path(#{}) ->
+    undefined.
+
+get_header(Name, #{headers := _} = Req) ->
+    cowboy_req:header(Name, Req, undefined);
+get_header(_, #{}) ->
+    undefined.
+
 get_remote_addr(Req) ->
     case determine_remote_addr(Req) of
         {ok, RemoteAddr} ->
@@ -174,10 +189,13 @@ get_remote_addr(Req) ->
             undefined
     end.
 
+determine_remote_addr(#{headers := _} = Req) ->
+    Peer  = cowboy_req:peer(Req),
+    Value = cowboy_req:header(<<"x-forwarded-for">>, Req, undefined),
+    determine_remote_addr_from_header(Value, Peer);
 determine_remote_addr(Req) ->
     Peer  = cowboy_req:peer(Req),
-    Value = cowboy_req:header(<<"x-forwarded-for">>, Req),
-    determine_remote_addr_from_header(Value, Peer).
+    determine_remote_addr_from_header(undefined, Peer).
 
 determine_remote_addr_from_header(undefined, {IP, _Port}) ->
     % undefined, assuming no proxies were involved
