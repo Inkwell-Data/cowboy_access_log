@@ -271,4 +271,20 @@ filter_meta_for_error_test() ->
         request_duration := _,
         status := 400
     } = prepare_meta(400, #{}, State, undefined).
+
+-spec empty_call_test() -> _.
+empty_call_test() ->
+    Req = #{
+            peer => {{127,0,0,1}, 38170},
+            ref => foo
+           },
+    State = make_state(Req, #{}),
+    #{
+      peer_addr := <<"127.0.0.1">>,
+      status := 400
+     } = prepare_meta(400,
+                      #{<<"connection">> => <<"close">>,
+                        <<"content-length">> => <<"0">>},
+                      State,
+                      undefined).
 -endif.
