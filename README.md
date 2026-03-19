@@ -24,7 +24,7 @@ Check examples for better understanding.
 ### Add handler
 ```
 cowboy:start_clear(http, [{port, 8080}], #{
-    stream_handlers => [cowboy_access_log, cowboy_stream_h],
+    stream_handlers => [cowboy_access_log_h, cowboy_stream_h],
     env => #{dispatch => Dispatch}
 }).
 ```
@@ -33,13 +33,13 @@ cowboy:start_clear(http, [{port, 8080}], #{
 add_handler_filter(
     HandlerId,
     FilterId,
-    {fun logger_filters:domain/2, {stop, not_equal, [cowboy_access_log]}}
+    {fun logger_filters:domain/2, {stop, not_equal, [cowboy_access_log_h]}}
 ).
 ```
 ### Add function to tag each log event with random Id
 ```
 CowboyOpts0 = #{
-    stream_handlers => [cowboy_access_log, cowboy_stream_h],
+    stream_handlers => [cowboy_access_log_h, cowboy_stream_h],
     env => #{dispatch => Dispatch}
 },
 CowboyOpts = cowboy_access_log_h:set_extra_info_fun(fun(_Req) -> #{my_random_id => base64:encode(crypto:strong_rand_bytes(20))} end, CowboyOpts0),
