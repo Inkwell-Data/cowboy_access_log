@@ -241,7 +241,7 @@ filter_meta_test() ->
     #{
         request_method := <<"GET">>,
         request_path := <<>>,
-        request_time := _,
+        request_duration := _,
         response_length := 33,
         request_length := 100,
         peer_addr := <<"42.42.42.42">>,
@@ -268,8 +268,7 @@ filter_meta_for_error_test() ->
         remote_addr := <<"42.42.42.42">>,
         request_method := <<"GET">>,
         request_path := <<>>,
-        request_time := _,
+        request_duration := _,
         status := 400
     } = prepare_meta(400, #{}, State, undefined).
-
 -endif.
