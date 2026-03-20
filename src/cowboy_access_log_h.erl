@@ -117,7 +117,9 @@ early_error(StreamID, Reason, PartialReq, {_, Code, Headers, _} = Resp, Opts) ->
 
 log_access_safe(Code, Headers, #{req := Req} = State, ReqBodyLength) ->
     try
-        logger:log(info, "", [], prepare_meta(Code, Headers, State, ReqBodyLength)),
+        logger:info(maps:merge(#{msg => "early_error"},
+                               prepare_meta(Code, Headers, State,
+                                            ReqBodyLength))),
         Req
     catch
         Class:Reason:Stacktrace ->
