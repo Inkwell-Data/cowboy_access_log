@@ -72,13 +72,15 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
     IsResponse == response;
     IsResponse == error_response
 ->
-    Log = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
+    Log0 = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
     Level = maps:get(level, State, info),
     logger:set_module_level(?MODULE, Level),
+    %% Don't use cowboy's built in logger, it can't handle structured
+    %% logs yet.
+    Log = maps:merge(#{msg=> IsResponse}, Log0),
+    logger:log(Level, Log),
     {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    % Return ALL commands - both response and log
-    {[{log, Level, "~p", [Log]} | Commands0], State#{next => Next}};
-
+    {Commands0, State#{next => Next}};
 info(StreamID, Info, #{next := Next0} = State) ->
     {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
     {Commands0, State#{next => Next}}.
