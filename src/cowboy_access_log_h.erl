@@ -295,4 +295,21 @@ empty_call_test() ->
                         <<"content-length">> => <<"0">>},
                       State,
                       undefined).
+
+-spec ref_test() -> _.
+ref_test() ->
+    Req = #{
+            peer => {{127,0,0,1}, 38170},
+            ref => foo
+           },
+    State = make_state(Req, #{}),
+    #{
+      peer_addr := <<"127.0.0.1">>,
+      status := 400,
+      ref := foo
+     } = prepare_meta(400,
+                      #{<<"connection">> => <<"close">>,
+                        <<"content-length">> => <<"0">>},
+                      State,
+                      undefined).
 -endif.
