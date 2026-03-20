@@ -141,7 +141,8 @@ prepare_meta(Code, Headers, #{req := Req, meta:= Meta0, ext_fun := F, report_dom
         request_length      => ReqBodyLength,
         response_length     => get_response_len(Headers),
         request_duration    => get_request_duration(Meta0),
-        'http_x-request-id' => get_header(<<"x-request-id">>, Req)
+        'http_x-request-id' => get_header(<<"x-request-id">>, Req),
+        ref                 => maps:get(ref, Req, undefined)
     }),
     AccessMeta1 = maps:merge(get_process_meta(), AccessMeta),
     maps:merge(F(Req), AccessMeta1).
