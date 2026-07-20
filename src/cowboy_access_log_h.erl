@@ -31,7 +31,8 @@
     next := any(),
     req  := cowboy_req:req(),
     meta := #{started_at => genlib_time:ts()},
-    ext_fun := extra_info_fun()
+    ext_fun := extra_info_fun(),
+    report_domain := atom()
 }.
 
 %% API
@@ -74,7 +75,7 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
 ->
     Log0 = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
     Level = maps:get(level, State, info),
-    logger:set_module_level(?MODULE, Level),
+    _ = logger:set_module_level(?MODULE, Level),
     %% Don't use cowboy's built in logger, it can't handle structured
     %% logs yet.
     Log = maps:merge(#{msg=> IsResponse}, Log0),
@@ -156,6 +157,13 @@ get_request_body_length(Req) ->
 get_peer_addr(Req) ->
     {IP, _Port} = cowboy_req:peer(Req),
     genlib:to_binary(inet:ntoa(IP)).
+
+%% NOTE: in the early_error path the Req is a cowboy_stream:partial_req()
+%% which may be missing keys such as method/path/headers. Dialyzer widens
+%% Req to a full cowboy_req:req() (because get_peer_addr/1 calls
+%% cowboy_req:peer/1) and therefore flags the defensive clauses below as
+%% unreachable, so we suppress the no_match warning for them.
+-dialyzer({no_match, [get_method/1, get_path/1, get_header/2]}).
 
 get_method(#{method := _} = Req) ->
     cowboy_req:method(Req);
