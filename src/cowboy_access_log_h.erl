@@ -6,7 +6,7 @@
 -type extra_info_fun() :: fun((cowboy_req:req()) -> #{atom() => term()}).
 -export_type([extra_info_fun/0]).
 
-%%% Note that the logs from this module can be 
+%%% Note that the logs from this module can be
 %%% filtered on alog json reports using ths key
 %%% <<"error_logger">> => #{<<"tag">> => <<"info_msg">>}
 %%% the filed report is the json encoded access log
@@ -31,7 +31,8 @@
     next := any(),
     req  := cowboy_req:req(),
     meta := #{started_at => genlib_time:ts()},
-    ext_fun := extra_info_fun()
+    ext_fun := extra_info_fun(),
+    report_domain := atom()
 }.
 
 %% API
@@ -50,7 +51,7 @@ set_report_domain(Domain, Opts) when is_atom(Domain) ->
      -> cowboy:opts().
  set_log_level(Level, Opts) when is_atom(Level) ->
       Opts#{level => Level}.
-      
+
 %% callbacks
 
 -spec init(cowboy_stream:streamid(), cowboy_req:req(), cowboy:opts())
@@ -72,27 +73,15 @@ info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next
     IsResponse == response;
     IsResponse == error_response
 ->
-    Log = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
+    Log0 = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
     Level = maps:get(level, State, info),
-    logger:set_module_level(?MODULE, Level),
+    _ = logger:set_module_level(?MODULE, Level),
+    %% Don't use cowboy's built in logger, it can't handle structured
+    %% logs yet.
+    Log = maps:merge(#{msg=> IsResponse}, Log0),
+    logger:log(Level, Log),
     {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
-    % Return ALL commands - both response and log
-    {[{log, Level, "~p", [Log]} | Commands0], State#{next => Next}};
-
-%% -spec info(cowboy_stream:streamid(), any(), State)
-%%     -> {cowboy_stream:commands(), State} when State::state().
-%% info(StreamID, {IsResponse, Code, Headers, _} = Info, #{req := Req, next := Next0} = State) when
-%%     IsResponse == response;
-%%     IsResponse == error_response
-%% ->
-%%     Log = prepare_meta(Code, Headers, State, get_request_body_length(Req)),
-%%     % Logline = thoas:encode(LogMap),
-%%     % Log = #{type => access_log, json_report => Logline},
-%%     Level = maps:get(level, State, info),
-%%     logger:set_module_level(?MODULE, Level),
-%%     {_Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
-%%     {[{log, Level, "~p", [Log] }], State#{next => Next}};
-
+    {Commands0, State#{next => Next}};
 info(StreamID, Info, #{next := Next0} = State) ->
     {Commands0, Next} = cowboy_stream:info(StreamID, Info, Next0),
     {Commands0, State#{next => Next}}.
@@ -117,7 +106,9 @@ early_error(StreamID, Reason, PartialReq, {_, Code, Headers, _} = Resp, Opts) ->
 
 log_access_safe(Code, Headers, #{req := Req} = State, ReqBodyLength) ->
     try
-        logger:log(info, "", [], prepare_meta(Code, Headers, State, ReqBodyLength)),
+        logger:info(maps:merge(#{msg => "early_error"},
+                               prepare_meta(Code, Headers, State,
+                                            ReqBodyLength))),
         Req
     catch
         Class:Reason:Stacktrace ->
@@ -146,12 +137,13 @@ prepare_meta(Code, Headers, #{req := Req, meta:= Meta0, ext_fun := F, report_dom
         status              => Code,
         remote_addr         => get_remote_addr(Req),
         peer_addr           => get_peer_addr(Req),
-        request_method      => cowboy_req:method(Req),
-        request_path        => cowboy_req:path(Req),
+        request_method      => get_method(Req),
+        request_path        => get_path(Req),
         request_length      => ReqBodyLength,
         response_length     => get_response_len(Headers),
         request_duration    => get_request_duration(Meta0),
-        'http_x-request-id' => cowboy_req:header(<<"x-request-id">>, Req, undefined)
+        'http_x-request-id' => get_header(<<"x-request-id">>, Req),
+        ref                 => maps:get(ref, Req, undefined)
     }),
     AccessMeta1 = maps:merge(get_process_meta(), AccessMeta),
     maps:merge(F(Req), AccessMeta1).
@@ -166,6 +158,28 @@ get_peer_addr(Req) ->
     {IP, _Port} = cowboy_req:peer(Req),
     genlib:to_binary(inet:ntoa(IP)).
 
+%% NOTE: in the early_error path the Req is a cowboy_stream:partial_req()
+%% which may be missing keys such as method/path/headers. Dialyzer widens
+%% Req to a full cowboy_req:req() (because get_peer_addr/1 calls
+%% cowboy_req:peer/1) and therefore flags the defensive clauses below as
+%% unreachable, so we suppress the no_match warning for them.
+-dialyzer({no_match, [get_method/1, get_path/1, get_header/2]}).
+
+get_method(#{method := _} = Req) ->
+    cowboy_req:method(Req);
+get_method(#{}) ->
+    undefined.
+
+get_path(#{path := _} = Req) ->
+    cowboy_req:path(Req);
+get_path(#{}) ->
+    undefined.
+
+get_header(Name, #{headers := _} = Req) ->
+    cowboy_req:header(Name, Req, undefined);
+get_header(_, #{}) ->
+    undefined.
+
 get_remote_addr(Req) ->
     case determine_remote_addr(Req) of
         {ok, RemoteAddr} ->
@@ -174,10 +188,13 @@ get_remote_addr(Req) ->
             undefined
     end.
 
+determine_remote_addr(#{headers := _} = Req) ->
+    Peer  = cowboy_req:peer(Req),
+    Value = cowboy_req:header(<<"x-forwarded-for">>, Req, undefined),
+    determine_remote_addr_from_header(Value, Peer);
 determine_remote_addr(Req) ->
     Peer  = cowboy_req:peer(Req),
-    Value = cowboy_req:header(<<"x-forwarded-for">>, Req),
-    determine_remote_addr_from_header(Value, Peer).
+    determine_remote_addr_from_header(undefined, Peer).
 
 determine_remote_addr_from_header(undefined, {IP, _Port}) ->
     % undefined, assuming no proxies were involved
@@ -241,7 +258,7 @@ filter_meta_test() ->
     #{
         request_method := <<"GET">>,
         request_path := <<>>,
-        request_time := _,
+        request_duration := _,
         response_length := 33,
         request_length := 100,
         peer_addr := <<"42.42.42.42">>,
@@ -268,8 +285,40 @@ filter_meta_for_error_test() ->
         remote_addr := <<"42.42.42.42">>,
         request_method := <<"GET">>,
         request_path := <<>>,
-        request_time := _,
+        request_duration := _,
         status := 400
     } = prepare_meta(400, #{}, State, undefined).
 
+-spec empty_call_test() -> _.
+empty_call_test() ->
+    Req = #{
+            peer => {{127,0,0,1}, 38170},
+            ref => foo
+           },
+    State = make_state(Req, #{}),
+    #{
+      peer_addr := <<"127.0.0.1">>,
+      status := 400
+     } = prepare_meta(400,
+                      #{<<"connection">> => <<"close">>,
+                        <<"content-length">> => <<"0">>},
+                      State,
+                      undefined).
+
+-spec ref_test() -> _.
+ref_test() ->
+    Req = #{
+            peer => {{127,0,0,1}, 38170},
+            ref => foo
+           },
+    State = make_state(Req, #{}),
+    #{
+      peer_addr := <<"127.0.0.1">>,
+      status := 400,
+      ref := foo
+     } = prepare_meta(400,
+                      #{<<"connection">> => <<"close">>,
+                        <<"content-length">> => <<"0">>},
+                      State,
+                      undefined).
 -endif.
