@@ -6,7 +6,7 @@
 -type extra_info_fun() :: fun((cowboy_req:req()) -> #{atom() => term()}).
 -export_type([extra_info_fun/0]).
 
-%%% Note that the logs from this module can be 
+%%% Note that the logs from this module can be
 %%% filtered on alog json reports using ths key
 %%% <<"error_logger">> => #{<<"tag">> => <<"info_msg">>}
 %%% the filed report is the json encoded access log
@@ -51,7 +51,7 @@ set_report_domain(Domain, Opts) when is_atom(Domain) ->
      -> cowboy:opts().
  set_log_level(Level, Opts) when is_atom(Level) ->
       Opts#{level => Level}.
-      
+
 %% callbacks
 
 -spec init(cowboy_stream:streamid(), cowboy_req:req(), cowboy:opts())
